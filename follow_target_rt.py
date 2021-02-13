@@ -1,4 +1,4 @@
-# Code attemptim to move drone in response to frame target analysis
+# Code attempting to move drone in response to frame target analysis
 
 import csv
 import cv2
