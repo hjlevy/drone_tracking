@@ -64,7 +64,7 @@ def depth_calc(w, dpx, W, p):
     return L
 
 
-os.chdir('videos')
+os.chdir('drone_tracking/videos')
 
 # deleting data from before
 filename = "distance.csv"
@@ -78,18 +78,18 @@ with open('distance.csv','w') as newFile:
     writer = csv.DictWriter(newFile, fieldnames=fieldnames)
     writer.writeheader()
 
-cap = cv2.VideoCapture('hand_test.mp4')
+cap = cv2.VideoCapture('red_highup.mp4')
 
 if (cap.isOpened()==False):
     print("Error opening video stream or file")
 
-# cv2.namedWindow("Trackbars")
-# cv2.createTrackbar("L-H", "Trackbars", 125, 180, nothing)
-# cv2.createTrackbar("L-S", "Trackbars", 31, 255, nothing)
-# cv2.createTrackbar("L-V", "Trackbars", 125, 255, nothing)
-# cv2.createTrackbar("U-H", "Trackbars", 180, 180, nothing)
-# cv2.createTrackbar("U-S", "Trackbars", 255, 255, nothing)
-# cv2.createTrackbar("U-V", "Trackbars", 255, 255, nothing)
+cv2.namedWindow("Trackbars")
+cv2.createTrackbar("L-H", "Trackbars", 125, 180, nothing)
+cv2.createTrackbar("L-S", "Trackbars", 85, 255, nothing)
+cv2.createTrackbar("L-V", "Trackbars", 94, 255, nothing)
+cv2.createTrackbar("U-H", "Trackbars", 180, 180, nothing)
+cv2.createTrackbar("U-S", "Trackbars", 255, 255, nothing)
+cv2.createTrackbar("U-V", "Trackbars", 255, 255, nothing)
 cnt_found = False
 
 line1 = []
@@ -105,18 +105,18 @@ while(cap.isOpened()):
     #using hsv color space to detect colors
     hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
 
-    # l_h = cv2.getTrackbarPos("L-H","Trackbars")
-    # l_s = cv2.getTrackbarPos("L-S","Trackbars")
-    # l_v = cv2.getTrackbarPos("L-V","Trackbars")
-    # u_h = cv2.getTrackbarPos("U-H","Trackbars")
-    # u_s = cv2.getTrackbarPos("U-S","Trackbars")
-    # u_v = cv2.getTrackbarPos("U-V","Trackbars")
+    l_h = cv2.getTrackbarPos("L-H","Trackbars")
+    l_s = cv2.getTrackbarPos("L-S","Trackbars")
+    l_v = cv2.getTrackbarPos("L-V","Trackbars")
+    u_h = cv2.getTrackbarPos("U-H","Trackbars")
+    u_s = cv2.getTrackbarPos("U-S","Trackbars")
+    u_v = cv2.getTrackbarPos("U-V","Trackbars")
 
-    # lower_red = np.array([l_h, l_s, l_v])
-    # upper_red = np.array([u_h, u_s, u_v])
+    lower_red = np.array([l_h, l_s, l_v])
+    upper_red = np.array([u_h, u_s, u_v])
 
-    lower_red = np.array([125,31,125])
-    upper_red = np.array([180,255,255])
+    # lower_red = np.array([125,85,95])
+    # upper_red = np.array([180,255,255])
 
     mask = cv2.inRange(hsv, lower_red,upper_red)
     # removing mask noise
@@ -171,10 +171,10 @@ while(cap.isOpened()):
         xc = data['dx']
         yc = data['dy']
         zc = data['dz']
-        line1 = live_plotter(xc,yc,zc,line1)
+        # line1 = live_plotter(xc,yc,zc,line1)
 
     cv2.imshow("Frame", frame)
-    # cv2.imshow("Mask", mask)
+    cv2.imshow("Mask", mask)
 
     # if esc key is pressed leave loop 
     if cv2.waitKey(1) == 27:

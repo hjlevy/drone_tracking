@@ -101,7 +101,7 @@ class StreamingExample(threading.Thread):
             f.close()
 
         # creating file
-        fieldnames = ["dx","dy"]
+        fieldnames = ["dx","dy","dz"]
         with open('distance.csv','w') as newFile:
             writer = csv.DictWriter(newFile, fieldnames=fieldnames)
             writer.writeheader()
@@ -167,45 +167,48 @@ class StreamingExample(threading.Thread):
             self.h264_stats_writer.writerow(
                 {'fps': h264_fps, 'bitrate': h264_bitrate})
 
-    # def animate(self):
-    #     data = pd.read_csv('distance.csv')
-    #     xc = data['dx']
-    #     yc = data['dy']
-
-    #     # plt.plot(x_vals,y_vals)
-    #     # plt.tight_layout()
-    #     # plot.set_data(xc,yc)
-    #     ax.cla()
-    #     ax.plot(xc,yc)
-    #     ax.set_xlim(-1,1)
-    #     ax.set_ylim(-1,1)
-
-    def live_plotter(self,x_vec,y1_data,line1,identifier='',pause_time=0.1):
-        if self.line1==[]:
+   
+    def live_plotter(self,x_vec,y1_data, z_data, line1, identifier='',pause_time=0.1):
+        if line1==[]:
             # this is the call to matplotlib that allows dynamic plotting
             plt.ion()
             fig = plt.figure(figsize=(13,6))
-            ax = fig.add_subplot(111)
+            ax = fig.add_subplot(111,projection='3d')
             # create a variable for the line so we can later update it
-            self.line1, = ax.plot(x_vec,y1_data,'o',alpha=0.8)        
+            self.line1, = ax.plot(x_vec,y1_data,z_data,'.',alpha=0.8)        
             #update plot label/title
-            plt.ylabel('Y Label')
+            plt.ylabel('dy')
+            plt.xlabel('dx')
+            ax.set_zlabel('dz')
+            ax.set_zlim(-1,1)
             plt.title('Title: {}'.format(identifier))
             plt.show()
     
         # after the figure, axis, and line are created, we only need to update the y-data
+        
         self.line1.set_data(x_vec,y1_data)
+        self.line1.set_3d_properties(z_data,'z')
         # adjust limits if new data goes beyond bounds
         # if np.min(y1_data)<=line1.axes.get_ylim()[0] or np.max(y1_data)>=line1.axes.get_ylim()[1]:
         #     plt.ylim([np.min(y1_data)-np.std(y1_data),np.max(y1_data)+np.std(y1_data)])
         
         plt.ylim([-1,1])
-        plt.xlim([-2,4])
+        plt.xlim([-1,1])
         # this pauses the data so the figure/axis can catch up - the amount of pause can be altered above
         plt.pause(pause_time)
-    
+        
         # return line so we can update it again in the next iteration
         return self.line1
+
+    def depth_calc(self, w, dpx, W, p):
+        # w = width of target in pixels, W = width of camera frame in pixels, p is pixel to meter conversion factor
+        cam_angle = 110*np.pi/180
+        # alpha = 2*np.arctan(w/W*np.tan(cam_angle/2))
+        # L = w*p/(2*np.tan(alpha/2))
+        w = p*w #width of target in meters
+        beta = np.arctan(2*(w/2+dpx)/W*np.tan(cam_angle/2))
+        L = (w/2+dpx)*p/np.tan(beta)
+        return L
 
     def show_yuv_frame(self, window_name, yuv_frame):
         start = time.time()
@@ -252,7 +255,7 @@ class StreamingExample(threading.Thread):
             x,y,w,h = cv2.boundingRect(cnt)
             cv2frame = cv2.rectangle(cv2frame,(x,y),(x+w,y+h),(0,255,0),2)
 
-            # wamt to only analyze largest contour
+            # want to only analyze largest contour
             if w>wmax:
                 wmax = w
 
@@ -269,32 +272,34 @@ class StreamingExample(threading.Thread):
                 y_cam_c = height/2
                 dx = (x_c - x_cam_c)*calx
                 dy = -(y_c - y_cam_c)*caly
+                dz = self.depth_calc(w,dx/calx,width,calx)
 
             cnt_found = True 
-
+        end = time.time()
 
         if cnt_found :    
+
             with open('distance.csv', 'a') as newFile:
-                writer = csv.DictWriter(newFile,fieldnames = ["dx","dy"])
+                writer = csv.DictWriter(newFile,fieldnames = ["dx","dy","dz"])
                 info = {
                     "dx": dx,
-                    "dy": dy
+                    "dy": dy,
+                    "dz": dz
                 }
                 writer.writerow(info) 
 
-            end = time.time()
-            
             data = pd.read_csv('distance.csv')
             xc = data['dx']
             yc = data['dy']
-            self.line1 = self.live_plotter(xc,yc,self.line1)
+            zc = data['dz']
+            self.line1 = self.live_plotter(xc,yc,zc,self.line1) 
+            
 
-        print("TIMER VALUE: %f" % (end-start))
+        # print("TIMER VALUE: %f" % (end-start))
         # Use OpenCV to show this frame
         cv2.imshow(window_name, cv2frame)
         # fig.canvas.draw()
         cv2.waitKey(1)  # please OpenCV for 1 ms...
-
 
 
     def run(self):

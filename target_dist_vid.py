@@ -43,7 +43,7 @@ plt.ion()
 plt.show()
 
 
-os.chdir('videos')
+os.chdir('drone_tracking/videos') 
 
 # deleting data from before
 filename = "distance.csv"

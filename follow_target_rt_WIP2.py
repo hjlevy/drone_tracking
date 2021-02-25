@@ -21,12 +21,19 @@ from os import path
 
 import time
 import olympe
-from olympe.messages.ardrone3.Piloting import TakeOff, Landing
+from olympe.messages.ardrone3.Piloting import TakeOff, Landing, PCMD
 from olympe.messages.ardrone3.Piloting import moveBy
 from olympe.messages.ardrone3.PilotingState import FlyingStateChanged
 from olympe.messages.ardrone3.PilotingSettings import MaxAltitude, MaxTilt, MaxDistance, NoFlyOverMaxDistance
+from olympe.messages.ardrone3.SpeedSettings import Outdoor
 from olympe.messages.ardrone3.GPSSettingsState import GPSFixStateChanged
 from olympe.messages import gimbal
+
+# for keyboard
+from pynput.keyboard import Listener, Key, KeyCode
+from collections import defaultdict
+from enum import Enum
+
 
 
 
@@ -36,7 +43,87 @@ DRONE_IP = "192.168.42.1"
 # use ggplot style for more sophisticated visuals
 plt.style.use('ggplot')
 
+# definining keyboard controls
+class Ctrl(Enum):
+    (
+        QUIT,
+        LANDING
+    ) = range(2)
 
+
+QWERTY_CTRL_KEYS = {
+    Ctrl.QUIT: Key.esc,
+    Ctrl.LANDING: "l"
+}
+
+
+class KeyboardCtrl(Listener):
+    def __init__(self, ctrl_keys=None):
+        self._ctrl_keys = self._get_ctrl_keys(ctrl_keys)
+        self._key_pressed = defaultdict(lambda: False)
+        self._last_action_ts = defaultdict(lambda: 0.0)
+        super().__init__(on_press=self._on_press, on_release=self._on_release)
+        self.start()
+
+    def _on_press(self, key):
+        if isinstance(key, KeyCode):
+            self._key_pressed[key.char] = True
+        elif isinstance(key, Key):
+            self._key_pressed[key] = True
+        if self._key_pressed[self._ctrl_keys[Ctrl.QUIT]]:
+            return False
+        else:
+            return True
+
+    def _on_release(self, key):
+        if isinstance(key, KeyCode):
+            self._key_pressed[key.char] = False
+        elif isinstance(key, Key):
+            self._key_pressed[key] = False
+        return True
+
+    def quit(self):
+        return not self.running or self._key_pressed[self._ctrl_keys[Ctrl.QUIT]]
+ 
+
+    def _rate_limit_cmd(self, ctrl, delay):
+        now = time.time()
+        if self._last_action_ts[ctrl] > (now - delay):
+            return False
+        elif self._key_pressed[self._ctrl_keys[ctrl]]:
+            self._last_action_ts[ctrl] = now
+            return True
+        else:
+            return False
+
+
+    def landing(self):
+        return self._rate_limit_cmd(Ctrl.LANDING, 2.0)
+
+    def _get_ctrl_keys(self, ctrl_keys):
+        # Get the default ctrl keys based on the current keyboard layout:
+        if ctrl_keys is None:
+            ctrl_keys = QWERTY_CTRL_KEYS
+            try:
+                # Olympe currently only support Linux
+                # and the following only works on *nix/X11...
+                keyboard_variant = (
+                    subprocess.check_output(
+                        "setxkbmap -query | grep 'variant:'|"
+                        "cut -d ':' -f2 | tr -d ' '",
+                        shell=True,
+                    )
+                    .decode()
+                    .strip()
+                )
+            except subprocess.CalledProcessError:
+                pass
+            else:
+                if keyboard_variant == "azerty":
+                    ctrl_keys = AZERTY_CTRL_KEYS
+        return ctrl_keys
+
+# STREAMING CLASS 
 class StreamingExample():
 
     def __init__(self):
@@ -57,6 +144,7 @@ class StreamingExample():
         # self.frame_queue = queue.Queue()
         # self.flush_queue_lock = threading.Lock()
         self.line1 = []
+        self.position = []
 
         # super().__init__()
         # super().start()
@@ -238,6 +326,8 @@ class StreamingExample():
         end = time.time()
 
         if cnt_found :    
+            # seeing if center of bounding box getting updated
+            self.position.append((x_c,y_c))
 
             with open('distance.csv', 'a') as newFile:
                 writer = csv.DictWriter(newFile,fieldnames = ["dx","dy","dz"])
@@ -258,13 +348,14 @@ class StreamingExample():
 
             if abs(dx) < 0.5 and abs(dy) < 0.5:
                 print('moving!')
-                self.drone(moveBy(dy,dx,0,0) >>FlyingStateChanged(state="hovering", _timeout=5)).wait() 
+                # self.drone(moveBy(0,0,0,0) >>FlyingStateChanged(state="hovering", _timeout=5)).wait()
+                self.drone.piloting_pcmd(0, 0, 0, 50, 1)
+                # time.sleep(1) 
             
 
         # print("TIMER VALUE: %f" % (end-start))
         # Use OpenCV to show this frame
         cv2.imshow(window_name, cv2frame)
-        # fig.canvas.draw()
         cv2.waitKey(1)  # please OpenCV for 1 ms...
 
         # cv2.destroyWindow(window_name)
@@ -317,17 +408,19 @@ if __name__ == "__main__":
     # Stop the video stream
     
     time.sleep(10)
-    print("Landing...")
-    streaming_example.drone(Landing()).wait().success()
-    print("Landed\n")
+    # print("Landing...")
+    # streaming_example.drone(Landing()).wait().success()
+    # print("Landed\n")
 
-    # # if spacebar pressed then land drone
-    # while True:
-    #     if keyboard.is_pressed(' '):
-    #         print("Landing...")
-    #         drone(Landing()).wait().success()
-    #         print("Landed\n")
+    control = KeyboardCtrl()
+    while not control.quit():
+        if control.landing():
+            print("Landing...")
+            streaming_example.drone(Landing())
+            print("Landed\n")
+            break
 
     streaming_example.stop()
+    print(streaming_example.position)
     # Recorded video stream postprocessing
     streaming_example.postprocessing()
