@@ -1,4 +1,6 @@
 # Code attempting to move drone in response to frame target analysis
+# moving in yuv_cb
+# Press "l" key when you want to land the drone and stop streaming
 
 import csv
 import cv2
@@ -349,8 +351,8 @@ class StreamingExample():
             if abs(dx) < 0.5 and abs(dy) < 0.5:
                 print('moving!')
                 # self.drone(moveBy(0,0,0,0) >>FlyingStateChanged(state="hovering", _timeout=5)).wait()
-                self.drone.piloting_pcmd(0, 0, 0, 50, 1)
-                # time.sleep(1) 
+                self.drone.piloting_pcmd(0, 50, 0, 0, 0.2) #(roll,pitch,yaw,gaz,dt)
+                time.sleep(0.2) 
             
 
         # print("TIMER VALUE: %f" % (end-start))
