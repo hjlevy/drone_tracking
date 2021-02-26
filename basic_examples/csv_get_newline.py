@@ -13,3 +13,9 @@ print(bottom)
 x = bottom["dx"]
 x = x.iloc[0]
 print(abs(x)<1)
+
+y = bottom["dy"]
+y = y.iloc[0]
+
+print(int(np.sign(x)))
+print(round(abs(y/x))*np.sign(y))
