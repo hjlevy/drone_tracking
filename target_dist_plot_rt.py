@@ -374,7 +374,9 @@ if __name__ == "__main__":
     streaming_example.start()
     # Perform some live video processing while the drone is flying
     # streaming_example.fly()
-    # record for 10 seconds
+
+    # if want to hold the drone and move it while processing
+    # record for 20 seconds
     time.sleep(20)
     # Stop the video stream
     streaming_example.stop()
