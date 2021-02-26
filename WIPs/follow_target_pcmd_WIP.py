@@ -1,7 +1,8 @@
 # Code to move drone in response to frame target analysis to red target
-# moving in fly function
+# moving in yuv_cb
 # drone will land when within 5 cm of target center
 # Press "l" key when you want to land the drone and stop streaming
+# using piloting pcmd to move
 
 import csv
 import cv2
@@ -415,16 +416,29 @@ class StreamingExample():
                 if abs(x) < 0.05 and abs(y) < 0.05:
                     break
                 elif abs(x) < 1 and abs(y) < 1:
-                    print('moving by:')
-                    print(x,y,z)
+                    print('dist moving:')
+                    print(x,y)
+                    print('moving by (roll %,pitch %):')
+
+                    # calculating signs of roll and pitch using relative relations
+                    # to each other
+                    if y>x:
+                        pitch_pm = round(abs(y/x))*np.sign(y)
+                        roll_pm = np.sign(x)
+                        print(roll_pm,pitch_pm)
+                    else:
+                        roll_pm = round(abs(x/y))*np.sign(x)
+                        pitch_pm = np.sign(y)
+                        print(roll_pm,pitch_pm)
 
                     start = time.time()
-                    self.drone(moveBy(y, x, 0, 0)).wait().success()
-                    # time.sleep(1)
+                    # moving using piloting pcmd 
+                    self.drone.piloting_pcmd(int(roll_pm), int(pitch_pm), 0, 0, 0.3) #(roll,pitch,yaw,gaz,dt)
+                    time.sleep(0.3)
                     end = time.time()
-                    print("DRONE TIMER VALUE: %f" % (end-start))
+                    print("DRONE TIMER VALUE: %f" % (end-start)) 
                     
-
+        self.drone.stop_piloting()
         # if control.landing():
         print("Landing...")
         self.drone(Landing())
