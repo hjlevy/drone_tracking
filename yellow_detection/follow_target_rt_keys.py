@@ -304,8 +304,6 @@ class StreamingExample():
 
     def stop(self):
         # Properly stop the video stream and disconnect
-        # window_name = "Drone Tracking Target"
-        # cv2.destroyWindow(window_name)
         self.drone.stop_video_streaming()
         self.drone.disconnect()
         # self.h264_stats_file.close()
@@ -414,9 +412,9 @@ class StreamingExample():
             
         # print("FRAME TIMER VALUE: %f" % (end-start))
         # Use OpenCV to show this frame
-        # cv2.namedWindow(window_name,cv2.WINDOW_NORMAL)
-        # cv2.imshow(window_name, cv2frame)
-        # cv2.waitKey(1)  # please OpenCV for 1 ms...
+        cv2.namedWindow(window_name,cv2.WINDOW_NORMAL)
+        cv2.imshow(window_name, cv2frame)
+        cv2.waitKey(1)  # please OpenCV for 1 ms...
 
 
     def start_cb(self):

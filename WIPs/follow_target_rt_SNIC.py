@@ -1,6 +1,9 @@
-# Code attempting to move drone in response to frame target analysis
-# moving in yuv_cb
-# Press "l" key when you want to land the drone and stop streaming
+# frame target analysis of distance to yellow target
+# use keyboard keys to navigate to the target
+# will plot the distance to target and show a live stream of drone flying
+# see QWERTY_CONTROL_KEYS for keyboard mapping system
+# Press "esc" key when you want to stop streaming
+
 
 import csv
 import cv2
@@ -15,8 +18,6 @@ import traceback
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-
-import keyboard
 
 import os.path
 from os import path
@@ -36,9 +37,6 @@ from pynput.keyboard import Listener, Key, KeyCode
 from collections import defaultdict
 from enum import Enum
 
-
-
-
 olympe.log.update_config({"loggers": {"olympe": {"level": "WARNING"}}})
 
 DRONE_IP = "192.168.42.1"
@@ -49,16 +47,45 @@ plt.style.use('ggplot')
 class Ctrl(Enum):
     (
         QUIT,
-        LANDING
-    ) = range(2)
+        TAKEOFF,
+        LANDING,
+        MOVE_LEFT,
+        MOVE_RIGHT,
+        MOVE_FORWARD,
+        MOVE_BACKWARD,
+        MOVE_UP,
+        MOVE_DOWN,
+        TURN_LEFT,
+        TURN_RIGHT,
+    ) = range(11)
 
 
 QWERTY_CTRL_KEYS = {
     Ctrl.QUIT: Key.esc,
-    Ctrl.LANDING: "l"
+    Ctrl.START: "r",
+    Ctrl.TAKEOFF: "t",
+    Ctrl.LANDING: "l",
+    Ctrl.MOVE_LEFT: "h",
+    Ctrl.MOVE_RIGHT: "k",
+    Ctrl.MOVE_FORWARD: "u",
+    Ctrl.MOVE_BACKWARD: "j",
+    Ctrl.MOVE_UP: Key.up,
+    Ctrl.MOVE_DOWN: Key.down,
+    Ctrl.TURN_LEFT: Key.left,
+    Ctrl.TURN_RIGHT: Key.right,
 }
 
+AZERTY_CTRL_KEYS = QWERTY_CTRL_KEYS.copy()
+AZERTY_CTRL_KEYS.update(
+    {
+        Ctrl.MOVE_LEFT: "q",
+        Ctrl.MOVE_RIGHT: "d",
+        Ctrl.MOVE_FORWARD: "z",
+        Ctrl.MOVE_BACKWARD: "s",
+    }
+)
 
+## KEYBOARD CLASS
 class KeyboardCtrl(Listener):
     def __init__(self, ctrl_keys=None):
         self._ctrl_keys = self._get_ctrl_keys(ctrl_keys)
@@ -84,9 +111,48 @@ class KeyboardCtrl(Listener):
             self._key_pressed[key] = False
         return True
 
+    def start(self):
+        return self._ctrl_keys[Ctrl.START]
+
     def quit(self):
         return not self.running or self._key_pressed[self._ctrl_keys[Ctrl.QUIT]]
- 
+
+    def _axis(self, left_key, right_key):
+        return 100 * (
+            int(self._key_pressed[right_key]) - int(self._key_pressed[left_key])
+        )
+
+    def roll(self):
+        return self._axis(
+            self._ctrl_keys[Ctrl.MOVE_LEFT],
+            self._ctrl_keys[Ctrl.MOVE_RIGHT]
+        )
+
+    def pitch(self):
+        return self._axis(
+            self._ctrl_keys[Ctrl.MOVE_BACKWARD],
+            self._ctrl_keys[Ctrl.MOVE_FORWARD]
+        )
+
+    def yaw(self):
+        return self._axis(
+            self._ctrl_keys[Ctrl.TURN_LEFT],
+            self._ctrl_keys[Ctrl.TURN_RIGHT]
+        )
+
+    def throttle(self):
+        return self._axis(
+            self._ctrl_keys[Ctrl.MOVE_DOWN],
+            self._ctrl_keys[Ctrl.MOVE_UP]
+        )
+
+    def has_piloting_cmd(self):
+        return (
+            bool(self.roll())
+            or bool(self.pitch())
+            or bool(self.yaw())
+            or bool(self.throttle())
+        )
 
     def _rate_limit_cmd(self, ctrl, delay):
         now = time.time()
@@ -98,6 +164,8 @@ class KeyboardCtrl(Listener):
         else:
             return False
 
+    def takeoff(self):
+        return self._rate_limit_cmd(Ctrl.TAKEOFF, 2.0)
 
     def landing(self):
         return self._rate_limit_cmd(Ctrl.LANDING, 2.0)
@@ -125,16 +193,23 @@ class KeyboardCtrl(Listener):
                     ctrl_keys = AZERTY_CTRL_KEYS
         return ctrl_keys
 
+## SNIC CLASS
+
+
+
 # STREAMING CLASS 
 class StreamingExample():
 
     def __init__(self):
         # Create the olympe.Drone object from its IP address
         self.drone = olympe.Drone(DRONE_IP)
+
         # max distance setting minimum is 10 meters
-        self.drone(MaxDistance(0.5)).wait()
+        self.drone(MaxDistance(10)).wait()
         self.drone(NoFlyOverMaxDistance(1)).wait()
         self.drone(Outdoor(0)).wait()
+
+        # temporary directory
         self.tempd = tempfile.mkdtemp(prefix="olympe_streaming_test_")
         print("Olympe streaming example output dir: {}".format(self.tempd))
         # self.h264_frame_stats = []
@@ -148,8 +223,6 @@ class StreamingExample():
         self.line1 = []
         self.position = []
 
-        # super().__init__()
-        # super().start()
     
     def live_plotter(self,x_vec,y1_data, z_data, line1, identifier='',pause_time=0.1):
         if line1==[]:
@@ -186,16 +259,6 @@ class StreamingExample():
     def start(self):
         # Connect the the drone
         self.drone.connect()
-
-        # taking off
-        self.drone.start_piloting()
-        self.drone(
-            TakeOff()
-            >> FlyingStateChanged(state="hovering", _timeout=5)
-        ).wait().success()    
-        time.sleep(1)
-        self.drone(moveBy(0,0,-0.5,0)).wait()
-        time.sleep(1)
 
         # You can record the video stream from the drone if you plan to do some
         # post processing.
@@ -283,12 +346,21 @@ class StreamingExample():
         cv2frame = cv2.cvtColor(yuv_frame.as_ndarray(), cv2_cvt_color_flag)
         # converting from rgb to hsv
         hsv = cv2.cvtColor(cv2frame, cv2.COLOR_BGR2HSV)
+        
+        # IF RED TARGET
+        # lower_red = np.array([125,85,95])
+        # upper_red = np.array([180,255,255])
 
-        lower_red = np.array([125,85,95])
-        upper_red = np.array([180,255,255])
+        # # creating a mask red-> white, anything else ->black
+        # mask = cv2.inRange(hsv, lower_red,upper_red)
 
-        # creating a mask red-> white, anything else ->black
-        mask = cv2.inRange(hsv, lower_red,upper_red)
+        # IF YELLOW TARGET
+        lower_yellow = np.array([24,51,122])
+        upper_yellow = np.array([90,182,255])
+
+        # creating a mask yellow-> white, anything else ->black
+        mask = cv2.inRange(hsv, lower_yellow,upper_yellow)
+
         # removing mask noise
         kernel= np.ones((5,5), np.uint8)
         mask = cv2.erode(mask, kernel)
@@ -345,22 +417,12 @@ class StreamingExample():
             yc = data['dy']
             zc = data['dz']
             self.line1 = self.live_plotter(xc,yc,zc,self.line1)
-
-            # only moving if not crazy amount
-
-            if abs(dx) < 0.5 and abs(dy) < 0.5:
-                print('moving!')
-                # self.drone(moveBy(0,0,0,0) >>FlyingStateChanged(state="hovering", _timeout=5)).wait()
-                self.drone.piloting_pcmd(0, 50, 0, 0, 0.2) #(roll,pitch,yaw,gaz,dt)
-                time.sleep(0.2) 
             
-
-        # print("TIMER VALUE: %f" % (end-start))
+        # print("FRAME TIMER VALUE: %f" % (end-start))
         # Use OpenCV to show this frame
+        cv2.namedWindow(window_name,cv2.WINDOW_NORMAL)
         cv2.imshow(window_name, cv2frame)
         cv2.waitKey(1)  # please OpenCV for 1 ms...
-
-        # cv2.destroyWindow(window_name)
 
 
     def start_cb(self):
@@ -396,11 +458,53 @@ class StreamingExample():
             check=True
         )
 
-        # Replay this MP4 video file using the default video viewer (VLC?)
-        # subprocess.run(
-        #     shlex.split('xdg-open {}'.format(mp4_filepath)),
-        #     check=True
-        # )
+    def fly_by_keys(self):
+
+        # quit keys by esc key
+        # while esc not pressed, continue to read csv file to see where drone target is 
+        control = KeyboardCtrl()
+
+        current_row = 1
+        while not control.quit():
+            data = pd.read_csv('distance.csv')
+
+            # seeing if next data point available in csv
+            # if it is available -> move the drone
+            if len(data.index)> current_row:
+                current_row = len(data.index) 
+
+                # getting last row of csv
+                bottom = data.tail(1)
+                x = bottom["dx"]
+                x = x.iloc[0]
+                y = bottom["dy"]
+                y = y.iloc[0]
+                z = bottom["dz"]
+                z = z.iloc[0]
+
+                print('distance in meters away from target is :')
+                print(x,y,z)  
+
+            if control.takeoff():
+                self.drone(TakeOff())
+            elif control.landing():
+                print("Landing...")
+                self.drone(Landing())
+                print("Landed\n")
+            if control.has_piloting_cmd():
+                self.drone(
+                    PCMD(
+                        1,
+                        control.roll(),
+                        control.pitch(),
+                        control.yaw(),
+                        control.throttle(),
+                        timestampAndSeqNum=0,
+                    )
+                )
+            else:
+                self.drone(PCMD(0, 0, 0, 0, 0, timestampAndSeqNum=0))
+            time.sleep(0.05)            
 
 
 if __name__ == "__main__":
@@ -409,18 +513,7 @@ if __name__ == "__main__":
     streaming_example.start()
     # Stop the video stream
     
-    time.sleep(10)
-    # print("Landing...")
-    # streaming_example.drone(Landing()).wait().success()
-    # print("Landed\n")
-
-    control = KeyboardCtrl()
-    while not control.quit():
-        if control.landing():
-            print("Landing...")
-            streaming_example.drone(Landing())
-            print("Landed\n")
-            break
+    streaming_example.fly_by_keys()
 
     streaming_example.stop()
     print(streaming_example.position)
