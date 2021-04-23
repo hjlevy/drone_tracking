@@ -63,39 +63,40 @@ cap = cv2.VideoCapture('yellow_test2.mp4')
 if (cap.isOpened()==False):
     print("Error opening video stream or file")
 
-cv2.namedWindow("Trackbars")
-cv2.createTrackbar("L-H", "Trackbars", 24, 180, nothing)
-cv2.createTrackbar("L-S", "Trackbars", 51, 255, nothing)
-cv2.createTrackbar("L-V", "Trackbars", 122, 255, nothing)
-cv2.createTrackbar("U-H", "Trackbars", 90, 180, nothing)
-cv2.createTrackbar("U-S", "Trackbars", 182, 255, nothing)
-cv2.createTrackbar("U-V", "Trackbars", 255, 255, nothing)
+# cv2.namedWindow("Trackbars")
+# cv2.createTrackbar("L-H", "Trackbars", 24, 180, nothing)
+# cv2.createTrackbar("L-S", "Trackbars", 51, 255, nothing)
+# cv2.createTrackbar("L-V", "Trackbars", 122, 255, nothing)
+# cv2.createTrackbar("U-H", "Trackbars", 90, 180, nothing)
+# cv2.createTrackbar("U-S", "Trackbars", 182, 255, nothing)
+# cv2.createTrackbar("U-V", "Trackbars", 255, 255, nothing)
 cnt_found = False
 
 while(cap.isOpened()):
+    start = time.time()
     ret, frame = cap.read()
     
     width = cap.get(3)
     height = cap.get(4)
 
     # used to slow down to set trackbars
-    time.sleep(0.1) 
+    #time.sleep(0.1) 
 
     #using hsv color space to detect colors
     hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
 
-    l_h = cv2.getTrackbarPos("L-H","Trackbars")
-    l_s = cv2.getTrackbarPos("L-S","Trackbars")
-    l_v = cv2.getTrackbarPos("L-V","Trackbars")
-    u_h = cv2.getTrackbarPos("U-H","Trackbars")
-    u_s = cv2.getTrackbarPos("U-S","Trackbars")
-    u_v = cv2.getTrackbarPos("U-V","Trackbars")
+    # l_h = cv2.getTrackbarPos("L-H","Trackbars")
+    # l_s = cv2.getTrackbarPos("L-S","Trackbars")
+    # l_v = cv2.getTrackbarPos("L-V","Trackbars")
+    # u_h = cv2.getTrackbarPos("U-H","Trackbars")
+    # u_s = cv2.getTrackbarPos("U-S","Trackbars")
+    # u_v = cv2.getTrackbarPos("U-V","Trackbars")
 
-    lower_yellow = np.array([l_h, l_s, l_v])
-    upper_yellow = np.array([u_h, u_s, u_v])
+    # lower_yellow = np.array([l_h, l_s, l_v])
+    # upper_yellow = np.array([u_h, u_s, u_v])
 
-    # lower_yellow = np.array([24,51,122])
-    # upper_yellow = np.array([90,182,255])
+    lower_yellow = np.array([24,51,122])
+    upper_yellow = np.array([90,182,255])
 
     mask = cv2.inRange(hsv, lower_yellow,upper_yellow)
     # removing mask noise
@@ -134,6 +135,8 @@ while(cap.isOpened()):
 
 
         cnt_found = True 
+    stop = time.time()
+    print(start-stop)
 
     if cnt_found : 
         with open('distance.csv', 'a') as newFile:
@@ -148,8 +151,8 @@ while(cap.isOpened()):
     cv2.namedWindow("Frame",cv2.WINDOW_NORMAL)
     cv2.imshow("Frame", frame)
     # fig.canvas.draw()
-    cv2.namedWindow("Mask",cv2.WINDOW_NORMAL)
-    cv2.imshow("Mask", mask)
+    # cv2.namedWindow("Mask",cv2.WINDOW_NORMAL)
+    # cv2.imshow("Mask", mask)
 
     # if esc key is pressed leave loop 
     if cv2.waitKey(1) == 27:

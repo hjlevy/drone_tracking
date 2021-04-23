@@ -28,7 +28,6 @@ def animate():
     ax.set_xlabel('Change in X')
     ax.set_ylabel('Change in Y')
 
-
 def nothing(x):
     pass
 
@@ -52,7 +51,6 @@ def find_farthest_white_circ(img, target):
     farthest_dist = np.amax(distances)
     return farthest_dist
     
-
 # initializing plot
 fig, ax = plt.subplots()
 ax.set_xlabel('Change in X')
@@ -62,7 +60,6 @@ ax.set_ylim(-2,4)
 
 plt.ion()
 plt.show()
-
 
 os.chdir('videos') 
 
@@ -93,13 +90,14 @@ if (cap.isOpened()==False):
 cnt_found = False
 
 while(cap.isOpened()):
+    start = time.time()
     ret, frame = cap.read()
     
     width = cap.get(3)
     height = cap.get(4)
 
     # used to slow down to set trackbars
-    time.sleep(0.1) 
+    #time.sleep(0.1) 
 
     #using hsv color space to detect colors
     hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
@@ -143,7 +141,7 @@ while(cap.isOpened()):
         # plotting center of blob
         cv2.circle(frame, (cX, cY), 5, (0, 0, 255), -1)
 
-        # # plotting circle defined by farthest white point from centroid
+        # # circle radius defined by farthest white point from centroid
         # r = find_farthest_white_circ(thresh, (cX,cY))
 
         #finding dimensions of bounding rectangle by finding farthest white point from center in x and y
@@ -170,6 +168,8 @@ while(cap.isOpened()):
             dy = -(cY - y_cam_c)*caly
 
             cnt_found = True
+    stop = time.time()
+    print(stop-start)
 
     if cnt_found : 
         with open('distance.csv', 'a') as newFile:
@@ -183,14 +183,13 @@ while(cap.isOpened()):
 
     cv2.namedWindow("Frame",cv2.WINDOW_NORMAL)
     cv2.imshow("Frame", frame)
-    fig.canvas.draw()
-    cv2.namedWindow("Mask",cv2.WINDOW_NORMAL)
-    cv2.imshow("Mask", mask)
+    # fig.canvas.draw()
+    # cv2.namedWindow("Mask",cv2.WINDOW_NORMAL)
+    # cv2.imshow("Mask", mask)
 
     # if esc key is pressed leave loop 
     if cv2.waitKey(1) == 27:
         break
-
 
 cap.release()
 cv2.destroyAllWindows()

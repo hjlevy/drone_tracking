@@ -3,7 +3,7 @@
 # will plot the distance to target and show a live stream of drone flying
 # see QWERTY_CONTROL_KEYS for keyboard mapping system
 # Press "esc" key when you want to stop streaming
-# ADDED: Optimized contour function
+
 
 import csv
 import cv2
@@ -338,6 +338,7 @@ class StreamingExample():
         cv2frame = cv2.cvtColor(yuv_frame.as_ndarray(), cv2_cvt_color_flag)
         # converting from rgb to hsv
         hsv = cv2.cvtColor(cv2frame, cv2.COLOR_BGR2HSV)
+        gray_image = cv2.cvtColor(cv2frame, cv2.COLOR_BGR2GRAY)
         
         # IF RED TARGET
         # lower_red = np.array([125,85,95])
@@ -357,44 +358,62 @@ class StreamingExample():
         kernel= np.ones((5,5), np.uint8)
         mask = cv2.erode(mask, kernel)
 
-        #contours detection
-        if int(cv2.__version__[0]) > 3:
-            contours, _ = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-        else:
-            _, contours, _ = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        #creating binary image using cv2 threshold
+        ret, thresh = cv2.threshold(mask, 50, 255, cv2.THRESH_BINARY)
 
-        wmax = 0
-        cnt_found = False
-        for cnt in contours:
-            x,y,w,h = cv2.boundingRect(cnt)
-            cv2frame = cv2.rectangle(cv2frame,(x,y),(x+w,y+h),(0,255,0),2)
+        # print(np.sum(thresh))
+        #only plot the centroid when enough white pixels detected in frame -> object there
+        if np.sum(thresh)>100000:
+            # calculate moments of binary image
+            M = cv2.moments(thresh)
 
-            # want to only analyze largest contour
-            if w>wmax:
-                wmax = w
+            # calculate x,y coordinate of center
+            M00 =  M["m00"]
+            if M00 == 0:
+                M00 = 0.001
 
-                # want to save center coordinate of bounding box
-                x_c = x+w/2
-                y_c = y+h/2
+            cX = int(M["m10"] / M00)
+            cY = int(M["m01"] / M00)
+
+            # plotting center of blob
+            cv2.circle(cv2frame, (cX, cY), 5, (0, 0, 255), -1)
+
+            # # circle radius defined by farthest white point from centroid
+            # r = find_farthest_white_circ(thresh, (cX,cY))
+
+            #finding dimensions of bounding rectangle by finding farthest white point from center in x and y
+            [xr, yr] = self.find_farthest_white(thresh, (cX,cY))
+            xr = int(xr)
+            yr = int(yr)
+
+            # only plot if the xr and yr isn't bigger than the entire frame
+            if xr < width/2 and yr< height/2:
+                # # plotting circle 
+                # cv2.circle(frame, (cX, cY), int(r), (0, 0, 255), 2)
+
+                # plotting rectangle
+                cv2.rectangle(cv2frame, (cX-xr, cY-yr), (cX+xr, cY+yr), (0,0,255), 2)
 
                 # calibration of real distances
-                calx = 0.295/w
-                caly = 0.23/h
+                calx = 0.295/(2*xr)
+                caly = 0.23/(2*yr)
 
                 # center of camera pos
                 x_cam_c = width/2
                 y_cam_c = height/2
-                dx = (x_c - x_cam_c)*calx
-                dy = -(y_c - y_cam_c)*caly
-                dz = self.depth_calc(w,dx/calx,width,calx)
+                dx = (cX - x_cam_c)*calx
+                dy = -(cY - y_cam_c)*caly
+                dz = self.depth_calc(2*xr,dx/calx,width,calx)
 
-            cnt_found = True 
+                cnt_found = True
+
         end = time.time()
 
         if cnt_found :    
-            # seeing if center of bounding box getting updated
-            self.position.append((x_c,y_c))
+            # seeing if center of bounding box getting updated with variable position
+            self.position.append((cX,cY))
 
+            # saving x y and z distances in a csv file
             with open('distance.csv', 'a') as newFile:
                 writer = csv.DictWriter(newFile,fieldnames = ["dx","dy","dz"])
                 info = {
@@ -404,13 +423,16 @@ class StreamingExample():
                 }
                 writer.writerow(info) 
 
+            #plotting x,y,z distance to target
             data = pd.read_csv('distance.csv')
             xc = data['dx']
             yc = data['dy']
             zc = data['dz']
             self.line1 = self.live_plotter(xc,yc,zc,self.line1)
+            # self.line1 = self.live_plotter(dx,dy,dz,self.line1)
             
-        print("FRAME TIMER VALUE: %f" % (end-start))
+        
+        # print("FRAME TIMER VALUE: %f" % (end-start))
         # Use OpenCV to show this frame
         cv2.namedWindow(window_name,cv2.WINDOW_NORMAL)
         cv2.imshow(window_name, cv2frame)
@@ -429,6 +451,17 @@ class StreamingExample():
             :type yuv_frame: olympe.VideoFrame
         """
         pass
+    
+    def find_farthest_white(self,img, target):
+        nonzero = cv2.findNonZero(img)
+        distances = np.sqrt((nonzero[:,:,0] - target[0]) ** 2 + (nonzero[:,:,1] - target[1]) ** 2)
+        dist_x = np.sqrt((nonzero[:,:,0] - target[0]) ** 2 )
+        dist_y = np.sqrt((nonzero[:,:,1] - target[1]) ** 2 )
+        x_max = np.amax(dist_x)
+        y_max = np.amax(dist_y)
+        #farthest_index = np.argmax(distances)
+        #return nonzero[farthest_index]
+        return [x_max,y_max]
 
     def depth_calc(self, w, dpx, W, p):
         # w = width of target in pixels, W = width of camera frame in pixels, p is pixel to meter conversion factor
@@ -512,6 +545,5 @@ if __name__ == "__main__":
 
     streaming_example.stop()
     # print(streaming_example.position)
-
     # Recorded video stream postprocessing
     streaming_example.postprocessing()
