@@ -35,9 +35,11 @@ class Step_Response(threading.Thread):
         # Connect the the drone
         self.drone.connect()
         self.drone.start_piloting()
-        self.testname = 'forward'
+        self.testname = 'right'
         self.pulse = 1
         self.sample = 0.01
+
+        self.state = 0
         super().__init__()
         super().start()
     
@@ -48,8 +50,8 @@ class Step_Response(threading.Thread):
         dur = dur.replace('.','')
         fs = str(self.sample)
         fs = fs.replace('.','')
-        filename = self.testname + "_vel_" + dur + '_smp_' + fs + '_NED_t'+".csv"
-        fieldnames = ["time","vel_x","vel_y","vel_z", "roll", "pitch", "yaw"]
+        filename = self.testname + "_vel_" + dur + '_smp_' + fs + "_st" + ".csv"
+        fieldnames = ["time","vel_x","vel_y","vel_z", "roll", "pitch", "yaw" , "st"]
         with open(filename,'w') as newFile:
             writer = csv.DictWriter(newFile, fieldnames=fieldnames)
             writer.writeheader()
@@ -72,19 +74,41 @@ class Step_Response(threading.Thread):
             self.drone.piloting_pcmd(0, 50, 0, 0, dt)
             # self.drone(moveBy(0, 1, 0, 0))
             time.sleep(dt)
+
+            self.state = 1
         elif self.testname == 'backward':
             # moving bkward 50% 
             self.drone.piloting_pcmd(0, -50, 0, 0, dt)
             time.sleep(dt)
+
+            self.state = 1
         elif self.testname == 'right':
             # moving right 50%
             self.drone.piloting_pcmd(50, 0, 0, 0, dt)
             time.sleep(dt)
-        else:
+
+            self.state = 1
+
+        elif self.testname == 'left':
             # moving left 50% 
             self.drone.piloting_pcmd(-50, 0, 0, 0, dt)
             time.sleep(dt) 
 
+            self.state = 1
+        
+        elif self.testname == 'up':
+            # moving up 50% 
+            self.drone.piloting_pcmd(0, 0, 0, 50, dt)
+            time.sleep(dt) 
+
+            self.state = 1
+        
+        elif self.testname == 'down':
+            # moving down 50% 
+            self.drone.piloting_pcmd(0, 0, 0, -50, dt)
+            time.sleep(dt) 
+
+            self.state = 1
         #drone.piloting_pcmd(roll=0, pitch=50, yaw=0, gaz=0, piloting_time=1)   
         
         print("Landing...")
@@ -116,8 +140,8 @@ class Step_Response(threading.Thread):
             dur = dur.replace('.','')
             fs = str(self.sample)
             fs = fs.replace('.','')
-            filename = self.testname + "_vel_" + dur + '_smp_' + fs + '_NED_t' +".csv"
-            fieldnames = ["time","vel_x","vel_y","vel_z", "roll", "pitch", "yaw"]
+            filename = self.testname + "_vel_" + dur + '_smp_' + fs + "_st" + ".csv"
+            fieldnames = ["time","vel_x","vel_y","vel_z", "roll", "pitch", "yaw", "st"]
             with open(filename, 'a') as newFile:
                 writer = csv.DictWriter(newFile,fieldnames = fieldnames)
                 info = {
@@ -127,7 +151,8 @@ class Step_Response(threading.Thread):
                     "vel_z": dict['speedZ'],
                     "roll": at_dict['roll'],
                     "pitch": at_dict['pitch'],
-                    "yaw": at_dict['yaw']
+                    "yaw": at_dict['yaw'],
+                    "st": self.state
                 }
                 writer.writerow(info) 
             t = t + t_sample

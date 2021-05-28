@@ -124,7 +124,7 @@ class Step_Response(threading.Thread):
         self.record = True
 
         # pulse time for pcmd and data sampling time
-        self.pulse = 0.1
+        self.pulse = 0.02
         self.sample = 0.01
 
         # initializing states
@@ -206,7 +206,7 @@ class Step_Response(threading.Thread):
             elif n==4:
                 # moving up 50%
                 # print('moving up') 
-                self.drone.piloting_pcmd(0, 0, 0, -50, dt)
+                self.drone.piloting_pcmd(0, 0, 0, 50, dt)
                 time.sleep(dt)
 
                 #saving state 
@@ -214,7 +214,7 @@ class Step_Response(threading.Thread):
             elif n==5:
                 # moving down 50%
                 # print('moving down') 
-                self.drone.piloting_pcmd(0, 0, 0, 50, dt)
+                self.drone.piloting_pcmd(0, 0, 0, -50, dt)
                 time.sleep(dt)
 
                 #saving state 
