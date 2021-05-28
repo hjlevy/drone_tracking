@@ -3,7 +3,7 @@
 # will plot the distance to target and show a live stream of drone flying
 # see QWERTY_CONTROL_KEYS for keyboard mapping system
 # Press "esc" key when you want to stop streaming
-# ADDED: Optimized contour function
+
 
 import csv
 import cv2
@@ -62,6 +62,7 @@ class Ctrl(Enum):
 
 QWERTY_CTRL_KEYS = {
     Ctrl.QUIT: Key.esc,
+    Ctrl.START: "r",
     Ctrl.TAKEOFF: "t",
     Ctrl.LANDING: "l",
     Ctrl.MOVE_LEFT: "h",
@@ -109,6 +110,9 @@ class KeyboardCtrl(Listener):
         elif isinstance(key, Key):
             self._key_pressed[key] = False
         return True
+
+    def start(self):
+        return self._ctrl_keys[Ctrl.START]
 
     def quit(self):
         return not self.running or self._key_pressed[self._ctrl_keys[Ctrl.QUIT]]
@@ -188,6 +192,10 @@ class KeyboardCtrl(Listener):
                 if keyboard_variant == "azerty":
                     ctrl_keys = AZERTY_CTRL_KEYS
         return ctrl_keys
+
+## SNIC CLASS
+
+
 
 # STREAMING CLASS 
 class StreamingExample():
@@ -410,7 +418,7 @@ class StreamingExample():
             zc = data['dz']
             self.line1 = self.live_plotter(xc,yc,zc,self.line1)
             
-        print("FRAME TIMER VALUE: %f" % (end-start))
+        # print("FRAME TIMER VALUE: %f" % (end-start))
         # Use OpenCV to show this frame
         cv2.namedWindow(window_name,cv2.WINDOW_NORMAL)
         cv2.imshow(window_name, cv2frame)
@@ -507,11 +515,7 @@ if __name__ == "__main__":
     
     streaming_example.fly_by_keys()
 
-    # record for 10 seconds
-    # time.sleep(10)
-
     streaming_example.stop()
-    # print(streaming_example.position)
-
+    print(streaming_example.position)
     # Recorded video stream postprocessing
     streaming_example.postprocessing()

@@ -5,7 +5,7 @@ import olympe
 import time
 import numpy as np
 from olympe.messages.ardrone3.Piloting import TakeOff, moveBy, Landing
-from olympe.messages.ardrone3.PilotingState import FlyingStateChanged, PositionChanged, GpsLocationChanged, AltitudeChanged, SpeedChanged
+from olympe.messages.ardrone3.PilotingState import FlyingStateChanged, PositionChanged, GpsLocationChanged, AltitudeChanged, SpeedChanged, AttitudeChanged
 from olympe.messages.ardrone3.GPSSettingsState import GPSFixStateChanged, HomeChanged
 from olympe.messages.ardrone3.GPSState import NumberOfSatelliteChanged
 
@@ -20,7 +20,7 @@ if __name__ == "__main__":
 
     print("GPS position before take-off :", drone.get_state(HomeChanged))
     # print("GPS number of satellites changed: ", drone.get_state(NumberOfSatelliteChanged)["numberOfSatellite"])
-    assert drone(TakeOff()).wait().success()
+    # assert drone(TakeOff()).wait().success()
     drone.start_piloting()
     time.sleep(1)
 
@@ -28,18 +28,24 @@ if __name__ == "__main__":
         time.sleep(1)
         print("GPS positionchanged : ", drone.get_state(PositionChanged))
         print("GPS altitudechanged: ", drone.get_state(AltitudeChanged))
+        print("GPS attitudechanged: ", drone.get_state(AttitudeChanged))
         print("GPS loc changed : ", drone.get_state(GpsLocationChanged))
         print("Speed changed : ", drone.get_state(SpeedChanged))
+        dict = drone.get_state(SpeedChanged)
+        [vel_x, vel_y, vel_z] = [dict['speedX'],dict['speedY'],dict['speedZ']]
+        print(vel_x)
+
 
     print("MOVING FORWARD COMMAND START")
-    drone.piloting_pcmd(0, 50, 0, 0, 0.2)
+    # drone.piloting_pcmd(0, 50, 0, 0, 0.2)
     for i in np.arange(5):
         time.sleep(1)
         print("GPS positionchanged : ", drone.get_state(PositionChanged))
         print("GPS altitudechanged: ", drone.get_state(AltitudeChanged))
+        print("GPS attitudechanged: ", drone.get_state(AttitudeChanged))
         print("GPS loc changed : ", drone.get_state(GpsLocationChanged))
         print("Speed changed : ", drone.get_state(SpeedChanged))
 
     drone.stop_piloting()
-    assert drone(Landing()).wait().success()
+    # assert drone(Landing()).wait().success()
     drone.disconnect()

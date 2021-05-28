@@ -66,23 +66,6 @@ class StreamingExample(threading.Thread):
             flush_raw_cb=self.flush_cb,
         )
 
-        # #point gimbal downwards
-        # cameraAction = self.drone(gimbal.set_target(
-        #     gimbal_id=0,
-        #     control_mode="position",
-        #     yaw_frame_of_reference="none",
-        #     yaw=0.0,
-        #     pitch_frame_of_reference="relative",
-        #     pitch=-90,
-        #     roll_frame_of_reference="none",
-        #     roll=0,
-        # )).wait()
-        # time.sleep(5)
-
-        # #making sure gimbal moved
-        # if not cameraAction.success():
-        #     assert False, "Cannot set gimbal position target"
-
         # Start video streaming
         self.drone.start_video_streaming()
 
@@ -238,7 +221,7 @@ if __name__ == "__main__":
     streaming_example.start()
     # Perform some live video processing while the drone is flying
     # streaming_example.fly()
-    time.sleep(20)
+    time.sleep(35)
     # Stop the video stream
     streaming_example.stop()
     # Recorded video stream postprocessing

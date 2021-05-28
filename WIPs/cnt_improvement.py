@@ -1,6 +1,5 @@
 # code to analyze x y distance to yellow target from downloaded video
-# uses image processing to create bounding box on yellow feature
-# plotting technique can't be used real time
+# want to improve contour technique by finding centroid of the blob of white pixels
 # can use this to calibrate the yellow for an experiment
 
 import numpy as np
@@ -29,10 +28,29 @@ def animate():
     ax.set_xlabel('Change in X')
     ax.set_ylabel('Change in Y')
 
-
 def nothing(x):
     pass
 
+def find_farthest_white(img, target):
+    nonzero = cv2.findNonZero(img)
+    distances = np.sqrt((nonzero[:,:,0] - target[0]) ** 2 + (nonzero[:,:,1] - target[1]) ** 2)
+    dist_x = np.sqrt((nonzero[:,:,0] - target[0]) ** 2 )
+    dist_y = np.sqrt((nonzero[:,:,1] - target[1]) ** 2 )
+    x_max = np.amax(dist_x)
+    y_max = np.amax(dist_y)
+    #farthest_index = np.argmax(distances)
+    # farthest_dist = np.amax(distances)
+    #return nonzero[farthest_index]
+    return [x_max,y_max]
+
+def find_farthest_white_circ(img, target):
+    nonzero = cv2.findNonZero(img)
+    distances = np.sqrt((nonzero[:,:,0] - target[0]) ** 2 + (nonzero[:,:,1] - target[1]) ** 2)
+    #farthest_index = np.argmax(distances)
+    #return nonzero[farthest_index]
+    farthest_dist = np.amax(distances)
+    return farthest_dist
+    
 # initializing plot
 fig, ax = plt.subplots()
 ax.set_xlabel('Change in X')
@@ -42,7 +60,6 @@ ax.set_ylim(-2,4)
 
 plt.ion()
 plt.show()
-
 
 os.chdir('videos') 
 
@@ -84,6 +101,7 @@ while(cap.isOpened()):
 
     #using hsv color space to detect colors
     hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+    gray_image = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
     # l_h = cv2.getTrackbarPos("L-H","Trackbars")
     # l_s = cv2.getTrackbarPos("L-S","Trackbars")
@@ -98,45 +116,60 @@ while(cap.isOpened()):
     lower_yellow = np.array([24,51,122])
     upper_yellow = np.array([90,182,255])
 
-    mask = cv2.inRange(hsv, lower_yellow,upper_yellow)
+    mask = cv2.inRange(hsv, lower_yellow, upper_yellow)
     # removing mask noise
     kernel= np.ones((5,5), np.uint8)
     mask = cv2.erode(mask, kernel)
 
-    #contours detection
-    if int(cv2.__version__[0]) > 3:
-        contours, _ = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-    else:
-        _, contours, _ = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    #creating binary image using cv2 threshold
+    ret, thresh = cv2.threshold(mask, 50, 255, cv2.THRESH_BINARY)
 
-    wmax = 0
-    for cnt in contours:
-        x,y,w,h = cv2.boundingRect(cnt)
-        frame = cv2.rectangle(frame,(x,y),(x+w,y+h),(0,255,0),2)
-        # cv2.drawContours(frame, [cnt], 0, (0, 0, 0), 5)
+    # print(np.sum(thresh))
+    #only plot the centroid when enough white pixels detected in frame -> object there
+    if np.sum(thresh)>100000:
+        # calculate moments of binary image
+        M = cv2.moments(thresh)
 
-        # wamt to only analyze largest contour
-        if w>wmax:
-            wmax = w
+        # calculate x,y coordinate of center
+        M00 =  M["m00"]
+        if M00 == 0:
+            M00 = 0.001
 
-            # want to save center coordinate of bounding box
-            x_c = x+w/2
-            y_c = y+h/2
+        cX = int(M["m10"] / M00)
+        cY = int(M["m01"] / M00)
+
+        # plotting center of blob
+        cv2.circle(frame, (cX, cY), 5, (0, 0, 255), -1)
+
+        # # circle radius defined by farthest white point from centroid
+        # r = find_farthest_white_circ(thresh, (cX,cY))
+
+        #finding dimensions of bounding rectangle by finding farthest white point from center in x and y
+        [xr, yr] = find_farthest_white(thresh, (cX,cY))
+        xr = int(xr)
+        yr = int(yr)
+
+        # only plot if the xr and yr isn't bigger than the entire frame
+        if xr < width/2 and yr< height/2:
+            # # plotting circle 
+            # cv2.circle(frame, (cX, cY), int(r), (0, 0, 255), 2)
+
+            # plotting rectangle
+            cv2.rectangle(frame, (cX-xr, cY-yr), (cX+xr, cY+yr), (0,0,255), 2)
 
             # calibration of real distances
-            calx = 0.295/w
-            caly = 0.23/h
+            calx = 0.295/(2*xr)
+            caly = 0.23/(2*yr)
 
             # center of camera pos
             x_cam_c = width/2
             y_cam_c = height/2
-            dx = (x_c - x_cam_c)*calx
-            dy = -(y_c - y_cam_c)*caly
+            dx = (cX - x_cam_c)*calx
+            dy = -(cY - y_cam_c)*caly
 
-
-        cnt_found = True 
+            cnt_found = True
     stop = time.time()
-    print(start-stop)
+    print(stop-start)
 
     if cnt_found : 
         with open('distance.csv', 'a') as newFile:
@@ -157,7 +190,6 @@ while(cap.isOpened()):
     # if esc key is pressed leave loop 
     if cv2.waitKey(1) == 27:
         break
-
 
 cap.release()
 cv2.destroyAllWindows()
