@@ -124,7 +124,7 @@ class Step_Response(threading.Thread):
         self.record = True
 
         # pulse time for pcmd and data sampling time
-        self.pulse = 0.02
+        self.pulse = 0.05
         self.sample = 0.01
 
         # initializing states
@@ -175,50 +175,56 @@ class Step_Response(threading.Thread):
                 # moving forward 50% 
                 # print('moving forward')
                 self.drone.piloting_pcmd(0, 50, 0, 0, dt)
-                time.sleep(dt)
 
                 #saving state 
                 self.state1 = self.state1 + 1
+
+                time.sleep(dt)
             elif n==1:
                 # moving bkward 50% 
                 # print('moving backward')
                 self.drone.piloting_pcmd(0, -50, 0, 0, dt)
-                time.sleep(dt)
 
                 #saving state 
                 self.state1 = self.state1 - 1
+                
+                time.sleep(dt)
             elif n==2:
                 # moving right 50%
                 # print('moving right')
                 self.drone.piloting_pcmd(50, 0, 0, 0, dt)
-                time.sleep(dt)
 
                 #saving state 
                 self.state2 = self.state2 + 1
+
+                time.sleep(dt)
             elif n==3:
                 # moving left 50%
                 # print('moving left') 
                 self.drone.piloting_pcmd(-50, 0, 0, 0, dt)
-                time.sleep(dt)
 
                 #saving state 
                 self.state2 = self.state2 - 1
+
+                time.sleep(dt)
             elif n==4:
                 # moving up 50%
                 # print('moving up') 
                 self.drone.piloting_pcmd(0, 0, 0, 50, dt)
-                time.sleep(dt)
 
                 #saving state 
                 self.state3 = self.state3 - 1
+
+                time.sleep(dt)
             elif n==5:
                 # moving down 50%
                 # print('moving down') 
                 self.drone.piloting_pcmd(0, 0, 0, -50, dt)
-                time.sleep(dt)
 
                 #saving state 
                 self.state3 = self.state3 + 1
+
+                time.sleep(dt)
             else:
                 # print('doing nothing')
                 time.sleep(dt)

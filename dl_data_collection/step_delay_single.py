@@ -35,7 +35,7 @@ class Step_Response(threading.Thread):
         # Connect the the drone
         self.drone.connect()
         self.drone.start_piloting()
-        self.testname = 'right'
+        self.testname = 'left'
         self.pulse = 1
         self.sample = 0.01
 
@@ -72,43 +72,46 @@ class Step_Response(threading.Thread):
         if self.testname == 'forward':
             # moving forward 50% 
             self.drone.piloting_pcmd(0, 50, 0, 0, dt)
+            self.state = 1
             # self.drone(moveBy(0, 1, 0, 0))
             time.sleep(dt)
 
-            self.state = 1
         elif self.testname == 'backward':
             # moving bkward 50% 
             self.drone.piloting_pcmd(0, -50, 0, 0, dt)
+            self.state = 1
+
             time.sleep(dt)
 
-            self.state = 1
         elif self.testname == 'right':
             # moving right 50%
             self.drone.piloting_pcmd(50, 0, 0, 0, dt)
-            time.sleep(dt)
-
             self.state = 1
+
+            time.sleep(dt)
 
         elif self.testname == 'left':
             # moving left 50% 
             self.drone.piloting_pcmd(-50, 0, 0, 0, dt)
+            self.state = 1
+
             time.sleep(dt) 
 
-            self.state = 1
         
         elif self.testname == 'up':
             # moving up 50% 
             self.drone.piloting_pcmd(0, 0, 0, 50, dt)
+            self.state = 1
+
             time.sleep(dt) 
 
-            self.state = 1
         
         elif self.testname == 'down':
             # moving down 50% 
             self.drone.piloting_pcmd(0, 0, 0, -50, dt)
-            time.sleep(dt) 
-
             self.state = 1
+
+            time.sleep(dt) 
         #drone.piloting_pcmd(roll=0, pitch=50, yaw=0, gaz=0, piloting_time=1)   
         
         print("Landing...")
