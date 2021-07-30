@@ -3,7 +3,7 @@
 # will plot the distance to target and show a live stream of drone flying
 # see QWERTY_CONTROL_KEYS for keyboard mapping system
 # Press "esc" key when you want to stop streaming
-
+# ADDED: Optimized contour function
 
 import csv
 import cv2
